@@ -627,7 +627,7 @@ class DBApiRest {
 
         // check if there is a table name setted
         if((await this.__checkTable()) == false)
-            return {result: false, description: "You must set a table name"}
+            return {result: false, description: "You must set a correct table name"}
 
         return new Promise((resolve, reject) => {
 
