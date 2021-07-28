@@ -8,7 +8,7 @@ Javascript class for NodeJS that allows you to interface with a MySQL database u
 const HOST = "127.0.0.1";
 const USER = "root";
 const PASSWORD = "";
-const DATABASE = "startyp";
+const DATABASE = "dbName";
 
 const DBApiRest = new (require('./DBApiRest')).DBApiRest(HOST, USER, PASSWORD, DATABASE);   // you can add table name after DATABASE
 
