@@ -79,12 +79,12 @@ class DBApiRest {
         return await new Promise((resolve, reject) => {   // take all tables name
             this.#connection.query("SHOW TABLES", (error, result, fields) => {        // execute the query
 
-                if(error) throw error
+                // if(error) throw error
     
                 if(result != undefined)
                     resolve(result);
                 else
-                    reject(false);
+                    resolve(false);
             });
         });
     }
@@ -160,7 +160,15 @@ class DBApiRest {
                         let delete_query = "DELETE FROM `" + this.#tableName + "` WHERE `" + pk_id + "`=" + id;
                         this.#connection.query(delete_query, async (error, result, fields) => {        // execute the delete query
     
-                            if(error) throw error
+                            // if(error) throw error
+
+                            if(result != undefined)
+                                resolve({result: result, description: "Successful"});
+                            else
+                                if(this.__checkField(error.sqlMessage))
+                                    resolve({result: false, description: error.sqlMessage});
+                                else
+                                    resolve({result: false, description: "Error"});
                             
                         });
                     });
@@ -206,10 +214,17 @@ class DBApiRest {
                     else {
                         this.#connection.query(query, async (error, result, fields) => {        // execute the query
     
-                            if(error) throw error
+                            // if(error) throw error
                 
                             if(result != undefined)
-                                resolve({result: result, description: "Successful: update"});
+                                if(this.__checkField(result.affectedRows))
+                                    if(result.affectedRows == 0) {
+                                        resolve({result: false, description: "There isn't any id that matches"});
+                                    } else {
+                                        resolve({result: result, description: "Successful: update"});
+                                    }
+                                else
+                                    resolve({result: result, description: "Successful: update"});
                             else
                                 resolve({result: false, description: "Error: rows is undefined"});
                             
@@ -271,6 +286,30 @@ class DBApiRest {
                 check = true;
             }
 
+            // delete all , after the last '
+            let deleteComma = (str, del="'") => {
+
+                str = str.split("").reverse().join("");
+
+                let start = -1;
+
+                for (let index = 0; index < str.length; index++) {      // ,'',''
+                    const element = str[index];
+                    
+                    if(element == del)
+                        break;
+
+                    start = index;
+                }
+
+                str = str.split("").reverse().join("");
+
+                return str.substring(0, str.length-start-1);
+
+            }
+
+            query = deleteComma(query);
+
             query = query + " WHERE `" + (await this.__getPKField()).Field + "`=" + data.id;
 
             if(check == false)
@@ -310,12 +349,15 @@ class DBApiRest {
     
                     this.#connection.query(query, async (error, result, fields) => {        // execute the query
     
-                        if(error) throw error
+                        // if(error) throw error
             
                         if(result != undefined)
                             resolve({result: result, description: "Successful creation"});
                         else
-                            resolve({result: false, description: "Error: rows is undefined"});
+                            if(this.__checkField(error.sqlMessage))
+                                resolve({result: false, description: error.sqlMessage});
+                            else
+                                resolve({result: false, description: "Error"});
                         
                     });
     
@@ -349,6 +391,10 @@ class DBApiRest {
         return column_names;
     }
 
+    // get current table name
+    getTableName() {
+        return this.#tableName;
+    }
 
     async __generateInsertQuery(data = null) {
 
@@ -367,24 +413,55 @@ class DBApiRest {
             // take column names to check data
             let column_names = await this.__getFieldNames();
 
-            for (let index = 0; index < Object.keys(data).length; index++) {
+            // use a variable because there is a not field in obj, it insert an addictional ,
+            let nFields = Object.keys(data).length;
+            for (let index = 0; index < nFields; index++) {
                 const element = Object.keys(data)[index];
 
                 // check if data of index is a real column of the table
-                if(!column_names.includes(element))     // if there isnt in the table, skip element
-                    continue
+                if(!column_names.includes(element)) {            // if there isnt in the table, skip element
+                    nFields -= 1;
+                    continue;
+                }
                 
                 query += "`" + element + "`";
                 end_query += "'" + data[element] + "'";
 
                 // insert ,
-                if(index+1 != Object.keys(data).length) {
+                if(index+1 != nFields) {
                     query += ",";
                     end_query += ",";
                 }
             }
 
-            return query + ")" + end_query + ")";
+            // delete all , after the last '
+            let deleteComma = (str, del="'") => {
+
+                str = str.split("").reverse().join("");
+
+                let start = -1;
+
+                for (let index = 0; index < str.length; index++) {      // ,'',''
+                    const element = str[index];
+                    
+                    if(element == del)
+                        break;
+
+                    start = index;
+                }
+
+                str = str.split("").reverse().join("");
+
+                return str.substring(0, str.length-start-1);
+
+            }
+
+            // delete the last comma if there is
+            query = deleteComma(query, "`");
+            end_query = deleteComma(end_query);
+
+            let final_query = query + ")" + end_query + ")";
+            return final_query;
 
         } catch(error) {
             return false;
@@ -401,12 +478,15 @@ class DBApiRest {
         return await new Promise((resolve, reject) => {
             this.#connection.query("DESCRIBE `" + this.#tableName + "`", async (error, result, fields) => {        // execute the query
                 try {
-                    if(error) throw error
+                    // if(error) throw error
 
                     if(result != undefined)
                         resolve(result);
                     else
-                        resolve({result: false, description: "Error in describe query"});
+                        if(this.__checkField(error.sqlMessage))
+                            resolve({result: false, description: error.sqlMessage});
+                        else
+                            resolve({result: false, description: "Error in describe query"});
 
                 } catch(error) {
                     reject({result: false, description: "Error in describe query"});
@@ -555,7 +635,7 @@ class DBApiRest {
         return await new Promise((resolve, reject) => {
             this.#connection.query("DESCRIBE `" + tableName + "`", async (error, result, fields) => {        // execute the query
                 try {
-                    if(error) throw error
+                    // if(error) throw error
 
                     if(result != undefined) {
 
@@ -580,6 +660,9 @@ class DBApiRest {
 
                         resolve(pk);
                     } else
+                    if(this.__checkField(error.sqlMessage))
+                        resolve({result: false, description: error.sqlMessage});
+                    else
                         resolve({result: false, description: "Error in describe query"});
 
                 } catch(error) {
@@ -602,13 +685,15 @@ class DBApiRest {
     
                     this.#connection.query(query, async (error, result, fields) => {        // execute the query
     
-                        if(error) throw error
+                        // if(error) throw error
             
                         if(result != undefined)
                             resolve({result: result, description: "Successful"});
                         else
-                            resolve({result: false, description: "Error: rows is undefined"});
-                        
+                            if(this.__checkField(error.sqlMessage))
+                                resolve({result: false, description: error.sqlMessage});
+                            else
+                                resolve({result: false, description: "Error"});                        
                     });
     
     
@@ -639,7 +724,7 @@ class DBApiRest {
 
                     this.#connection.query(select, async (error, result, fields) => {        // execute the query
 
-                        if(error) throw error
+                        // if(error) throw error
             
                         for (let index = 0; index < result.length; index++) {
                             result[index] = await this.__setForeignData(result[index]);
@@ -649,7 +734,10 @@ class DBApiRest {
                         if(result != undefined)
                             resolve({result: result, description: "Successful"});
                         else
-                            resolve({result: false, description: "Error: rows is undefined"});
+                            if(this.__checkField(error.sqlMessage))
+                                resolve({result: false, description: error.sqlMessage});
+                            else
+                                resolve({result: false, description: "Error"});
                         
                     });
 
@@ -658,7 +746,7 @@ class DBApiRest {
 
                     this.#connection.query(select, [id], async (error, result, fields) => {        // execute the query
 
-                        if(error) throw error
+                        // if(error) throw error
 
                         for (let index = 0; index < result.length; index++) {
                             result[index] = await this.__setForeignData(result[index]);
@@ -667,7 +755,10 @@ class DBApiRest {
                         if(result != undefined)
                             resolve({result: result, description: ""});
                         else
-                            reject({result: false, description: "Error: rows is undefined"});
+                            if(this.__checkField(error.sqlMessage))
+                                resolve({result: false, description: error.sqlMessage});
+                            else
+                                resolve({result: false, description: "Error"});
                         
                     });
 
